@@ -61,24 +61,28 @@ def track_evaluate(benchmark, gt_folder, trackers_folder, seqmap_file):
     return results
 
 
-def read_txt_to_mot(path, length=None):
+def read_txt_to_mot(path, length=None, skip=None, frame_id_col=0):
     """
     Load txt file and add '-1' columns to match MOT format
     
     a.Arguments:
         - path: path to txt file
         - length: length of the sequence to evaluate. Leave as is if not specified.
+        - skip: number of frames to skip, always start at 1.
     
     b. Flow:
         - load txt path.
         - add '-1' columns for 10 columns in total.
         - truncate the result at the frame length is specified.
+        - skip frame if specified.
     """
     df = pd.read_csv(path, header=None)
     if len(df.columns) < 10:
         df[[c for c in range(len(df.columns), 10)]] = -1
     if length is not None:
         df = df.loc[df[0] <= length, :]
+    if skip is not None:
+        df = skip_frame_id(df, skip=skip, frame_id_col=frame_id_col)
     return df
 
 def create_benchmark(benchmark_name, sequences, destination, seqmap_path=None, verbose=False):
@@ -251,7 +255,15 @@ def align_to_ref(file, frame_ref, reindex=False, frame_id_col=0):
         return reindex_frame_id(file=result_file, frame_id_col=frame_id_col)
     return result_file.sort_values(by=frame_id_col).reset_index(drop=True)
 
-def pair_gt_result(gt_path, result_path, ref='result', length=None, destination=None, posfix='', frame_id_col=0, verbose=False):
+def skip_frame_id(file, skip=1, frame_id_col=0):
+    skip_func = lambda x: x%(skip+1)==1
+    file = file[file[frame_id_col].apply(skip_func)].reset_index(drop=True)
+    return file
+
+def pair_gt_result(gt_path, result_path, ref='gt', 
+                   length=None, gt_frame_skip=None, 
+                   destination=None, posfix='', frame_id_col=0, 
+                   verbose=False):
     """
     Pair gt file and result file by frame id and reindex them, useful for evaluating in different fps/frame skipping scenario.
     
@@ -260,11 +272,12 @@ def pair_gt_result(gt_path, result_path, ref='result', length=None, destination=
         - result_path: result txt path
         - ref: ['result', 'gt'] choose either result or groundtruth as the reference frame id
         - length: truncate the result and groundtuth at the frame length if specified
+        - gt_frame_skip: skip frame for gt, only when ref='gt'
         - destination: write 2 new file as destination if specified
         - posfix: posfix for the two written file
     
     b. Flow:
-        - load gt and result file, verify and truncate if specified.
+        - load gt and result file, verify and truncate, skip frame if specified.
         - create the frame id reference.
         - align the gt and result file to the reference.
         - reindex frame id of the gt and result file as incremental (1,2,3,..) instead of original frame id reference.
@@ -273,12 +286,14 @@ def pair_gt_result(gt_path, result_path, ref='result', length=None, destination=
     """
     assert_in_list(ref, ['result', 'gt'], name='reference')    
 
-    gt = read_txt_to_mot(gt_path, length=length)
-    result = read_txt_to_mot(result_path, length=length)
+    
+    result = read_txt_to_mot(result_path, length=length, frame_id_col=frame_id_col)
 
     if ref=='result':
+        gt = read_txt_to_mot(gt_path, length=length, skip=None, frame_id_col=frame_id_col) # only skip frame for gt if gt is reference
         frame_ref = result.loc[:, frame_id_col].values
     else:
+        gt = read_txt_to_mot(gt_path, length=length, skip=gt_frame_skip, frame_id_col=frame_id_col) 
         frame_ref = gt.loc[:, frame_id_col].values
 
     gt = align_to_ref(file=gt, frame_ref=frame_ref, reindex=True, frame_id_col=frame_id_col)
@@ -294,7 +309,8 @@ def pair_gt_result(gt_path, result_path, ref='result', length=None, destination=
     new_sequence_length = gt[frame_id_col].max()
     if verbose:
         print(f'Use \'{ref}\' to align and reindex frame id')
-        if length is not None: print(f'Truncate both file at frame id: {length}. Reindex to new length of: {new_sequence_length}')
+        if length is not None:
+            print(f'Truncate both file at frame id: {length}. Skip {ifnone(gt_frame_skip, 0)} frames and reindex to new length of: {new_sequence_length}')
         if destination is not None:
             print(f'Paired groundtruth is created at: {paired_gt_path}')
             print(f'Paired result is created at: {paired_result_path}')
