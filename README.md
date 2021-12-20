@@ -1,7 +1,7 @@
 # Description:
 Wrapper of [TrackEval](https://github.com/JonathonLuiten/TrackEval) with added utils in [`utils.py`](https://github.com/tadeephuy/TrackEval/blob/main/utils.py) for ease of use.
 
-# Usage
+# Usage:
 Please refer to [`demo.ipynb`](https://github.com/tadeephuy/TrackEval/blob/main/demo.ipynb)
 ## 0.Prepare folder directories
 
