@@ -1,7 +1,8 @@
-# Wrapper of for ease of use [TrackEval](https://github.com/JonathonLuiten/TrackEval) with added utils.
+# Description:
+Wrapper of [TrackEval](https://github.com/JonathonLuiten/TrackEval) with added utils in [`utils.py`](https://github.com/tadeephuy/TrackEval/blob/main/utils.py) for ease of use.
 
-Please refer to `demo.ipynb` for usage.
-
+# Usage
+Please refer to [`demo.ipynb`](https://github.com/tadeephuy/TrackEval/blob/main/demo.ipynb)
 ## 0.Prepare folder directories
 
 
@@ -266,9 +267,4 @@ import shutil
 
 shutil.rmtree(SAMPLE_FOLDER, ignore_errors=True)
 shutil.rmtree(PAIRED_DESTINATION, ignore_errors=True)
-```
-
-
-```python
-
 ```
