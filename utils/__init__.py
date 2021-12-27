@@ -1,3 +1,5 @@
+import os
+
 ifnone = lambda x, y: y if x is None else x
 
 get_name_from_path = lambda x: os.path.splitext(os.path.basename(x))[0]
