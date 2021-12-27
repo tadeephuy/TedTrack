@@ -80,7 +80,7 @@ def write_detection_features(encoder, detections, destination='./features/', **d
         for j,f in enumerate(feat):
             feat_path = os.path.join(destination, f'{str(idxb[j].item())}.npy')
             np.save(feat_path, f)
-            detections.loc[idxb[j].item(), 'feat'] = feat_path
+            detections.loc[idxb[j].item(), 'feat'] = os.path.abspath(feat_path)
     
     detections.columns = ['frame_id', 'track_id', 'x1', 'y1', 'w', 'h', 'confidence', 'na1', 'na2', 'na3', 'feat']
     detections_path = os.path.join(destination, 'detections.csv')
