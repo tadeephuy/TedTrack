@@ -199,10 +199,10 @@ def create_benchmark(benchmark_name, sequences, destination, seqmap_path=None, v
                 f.write(f'{sequence_name}\n')
 
     if verbose:
-        print(f'Benchmark \'{benchmark_name}\' created at: {benchmark_path}')
+        print(f'Benchmark \'{benchmark_name}\' created at: {os.path.abspath(benchmark_path)}')
         print(f'Sequences: {[c for c in sequence_name_list]}')
         if seqmap_path is not None:
-            print(f'Sequences mappings created at: {seqmap_path}')
+            print(f'Sequences mappings created at: {os.path.abspath(seqmap_path)}')
 
 
 def create_sequence(gt_path, fps, shape, name=None, length=None, verbose=False):
@@ -269,7 +269,7 @@ def create_tracker_results(result_path, benchmark_name, sequence_name, tracker_n
     result.to_csv(result_path, header=None, index=None)
 
     if verbose:
-        print(f'Result file of \'{tracker_name}\' for sequence \'{sequence_name}\' of benchmark \'{benchmark_name}\' is created at: {result_path}')
+        print(f'Result file of \'{tracker_name}\' for sequence \'{sequence_name}\' of benchmark \'{benchmark_name}\' is created at: {os.path.abspath(result_path)}')
 
 def summarize(results):
     """
@@ -365,8 +365,8 @@ def pair_gt_result(gt_path, result_path, ref='gt',
         if length is not None:
             print(f'Truncate both file at frame id: {length}. Skip {ifnone(gt_frame_skip, 0)} frames and reindex to new length of: {new_sequence_length}')
         if destination is not None:
-            print(f'Paired groundtruth is created at: {paired_gt_path}')
-            print(f'Paired result is created at: {paired_result_path}')
+            print(f'Paired groundtruth is created at: {os.path.abspath(paired_gt_path)}')
+            print(f'Paired result is created at: {os.path.abspath(paired_result_path)}')
             
 
     return {'gt': gt, 'result': result, 'length': new_sequence_length}
