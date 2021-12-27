@@ -175,13 +175,13 @@ def create_benchmark(benchmark_name, sequences, destination, seqmap_path=None, v
     """
 
     benchmark_path = os.path.join(destination, benchmark_name)
-    os.makedirs(benchmark_path)
+    os.makedirs(benchmark_path, exist_ok=True)
 
     sequence_name_list = []
     for i, sequence in enumerate(sequences):
         sequence_name = sequence['seqinfo'].get('name', f'sequence_{i}')
         sequence_path = os.path.join(benchmark_path, sequence_name)
-        os.makedirs(sequence_path)
+        os.makedirs(sequence_path, exist_ok=True)
         sequence['gt'].to_csv(os.path.join(sequence_path, 'gt.txt'), header=None, index=None)
         with open(os.path.join(sequence_path, 'seqinfo.ini'), 'w') as f:
             f.write('[Sequence]')
