@@ -1,13 +1,18 @@
-
 import os
 import sys
+import pickle as pkl
 import pandas as pd
 import numpy as np
+import torch
+from fastprogress import progress_bar
 from TrackEval import trackeval
+from . import ifnone, get_name_from_path, assert_in_list
 
-
-ifnone = lambda x, y: y if x is None else x
-get_name_from_path = lambda x: os.path.splitext(os.path.basename(x))[0]
+__all__ = [
+    'track_evaluate', 'create_sequence', 'create_benchmark',
+    'create_tracker_results', 'summarize', 'read_txt_to_mot', 'convert_pickled_to_txt',
+    'pair_gt_result'
+]
 
 def track_evaluate(benchmark, gt_folder, trackers_folder, seqmap_file):
     """
@@ -60,7 +65,6 @@ def track_evaluate(benchmark, gt_folder, trackers_folder, seqmap_file):
     results = evaluator.evaluate(dataset_list, metrics_list)
     return results
 
-
 def read_txt_to_mot(path, length=None, skip=None, frame_id_col=0):
     """
     Load txt file and add '-1' columns to match MOT format
@@ -84,6 +88,56 @@ def read_txt_to_mot(path, length=None, skip=None, frame_id_col=0):
     if skip is not None:
         df = skip_frame_id(df, skip=skip, frame_id_col=frame_id_col)
     return df
+
+def convert_pickled_to_txt(pkl_path, destination=None, return_df=False, 
+                           frame_id_starts_at_0=True, 
+                           length=None, skip=None,
+                           verbose=False):
+    """
+    Read pickled detections to mot txt file
+    
+    1.Arguments:
+        - pkl_path: path to pkl file
+        - destination: path to write the csv file
+        - return_df: return dataframe on RAM, overrides `destination`
+        - frame_id_starts_at_0: if True, increase frame_id by 1 to match MOT formats that starts at 1.
+        - length: truncate at frame_id length (MOT format starts at 1)
+        - skip: skip frame scenario
+    """
+    with open(pkl_path, 'rb') as f:
+        f = pkl.load(f)
+    
+    detections = []
+    for frame_id, boxes in f:
+        boxes = pd.DataFrame(boxes[0], columns=['x1', 'y1', 'x2', 'y2', 'conf'])
+        boxes['frame_id'] = frame_id
+        detections.append(boxes)
+    detections = pd.concat(detections)
+    detections['track_id'] = -1
+    detections['w'] = detections['x2'] - detections['x1']
+    detections['h'] = detections['y2'] - detections['y1']
+    
+    detections = detections[['frame_id', 'track_id', 'x1', 'y1', 'w', 'h', 'conf']].sort_values(by='frame_id').reset_index(drop=True)
+    if frame_id_starts_at_0:
+        detections['frame_id'] += 1
+        if verbose: print('Increased frame ID by 1 to match MOT format.')
+    
+    if len(detections.columns) < 10:
+        detections[[c for c in range(len(detections.columns), 10)]] = -1
+    if length is not None:
+        detections = detections.loc[detections[0] <= length, :]
+    if skip is not None:
+        detections = skip_frame_id(detections, skip=skip, frame_id_col='frame_id')
+
+    if return_df:
+        detections.columns = list(range(10))
+        return detections
+
+    destination = ifnone(destination, os.path.dirname(pkl_path))
+    txt_path = os.path.join(destination, f'{get_name_from_path(pkl_path)}.txt')
+    detections.to_csv(txt_path, header=None, index=None)
+    if verbose:
+        print(f'Converted txt file saved at: {os.path.abspath(txt_path)}')
 
 def create_benchmark(benchmark_name, sequences, destination, seqmap_path=None, verbose=False):
     """
@@ -240,8 +294,7 @@ def summarize(results):
         display(pd.DataFrame(metric_dict).T.astype({'IDsw': int}))
         print('='*50)
 
-def assert_in_list(x, x_values, name=''):
-    assert x in x_values, f"{name} should be one of {x_values}"
+
 
 def reindex_frame_id(file, frame_id_col=0):
     result_file = file.sort_values(by=frame_id_col).reset_index(drop=True)
@@ -317,3 +370,4 @@ def pair_gt_result(gt_path, result_path, ref='gt',
             
 
     return {'gt': gt, 'result': result, 'length': new_sequence_length}
+

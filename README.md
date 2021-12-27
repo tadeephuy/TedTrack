@@ -22,7 +22,7 @@ os.makedirs(os.path.join(SAMPLE_FOLDER, 'trackers'))
 
 
 ```python
-from utils import track_evaluate, create_sequence, create_benchmark,\
+from utils.tracking import track_evaluate, create_sequence, create_benchmark,\
                     create_tracker_results, summarize, read_txt_to_mot
 
 GT_PATH = './sample/gt.txt'
@@ -42,7 +42,7 @@ We specify `SKIP=3` and `ref='gt'`. This means the groundthuth is sampled after 
 
 
 ```python
-from utils import pair_gt_result
+from utils.tracking import pair_gt_result
 
 SKIP = 3
 RESULT_PATH = f'./sample/bytetrack/bytetrack_{SKIP}skipframes.txt'
