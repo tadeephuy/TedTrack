@@ -4,6 +4,7 @@ import pickle as pkl
 import pandas as pd
 import numpy as np
 import torch
+from IPython.display import display
 from fastprogress import progress_bar
 from TrackEval import trackeval
 from . import ifnone, get_name_from_path, assert_in_list
@@ -175,13 +176,13 @@ def create_benchmark(benchmark_name, sequences, destination, seqmap_path=None, v
     """
 
     benchmark_path = os.path.join(destination, benchmark_name)
-    os.makedirs(benchmark_path)
+    os.makedirs(benchmark_path, exist_ok=True)
 
     sequence_name_list = []
     for i, sequence in enumerate(sequences):
         sequence_name = sequence['seqinfo'].get('name', f'sequence_{i}')
         sequence_path = os.path.join(benchmark_path, sequence_name)
-        os.makedirs(sequence_path)
+        os.makedirs(sequence_path, exist_ok=True)
         sequence['gt'].to_csv(os.path.join(sequence_path, 'gt.txt'), header=None, index=None)
         with open(os.path.join(sequence_path, 'seqinfo.ini'), 'w') as f:
             f.write('[Sequence]')
@@ -271,14 +272,19 @@ def create_tracker_results(result_path, benchmark_name, sequence_name, tracker_n
     if verbose:
         print(f'Result file of \'{tracker_name}\' for sequence \'{sequence_name}\' of benchmark \'{benchmark_name}\' is created at: {os.path.abspath(result_path)}')
 
-def summarize(results):
+def summarize(results, group_by_sequence=False, verbose=True):
     """
     Summarize return results from `track_evaluate`.
     """
+    if not verbose:
+        def print(*args): return None
+        def display(*args): return None
+
+    df_results = []
     print('='*20, 'SUMMARY', '='*20)
     for tracker, result in results[0]['MotChallenge2DBox'].items():
         metric_dict = {}
-        print(tracker)
+        if not group_by_sequence: print(tracker)
         for sequence, sequence_result in result.items():
             hota_value = sequence_result['pedestrian']['HOTA']['HOTA'].mean()
 
@@ -291,10 +297,24 @@ def summarize(results):
             metric_dict[sequence] = {
                 'HOTA': hota_value, 'MOTA': mota_value, 'IDF1': idf1_value, 'IDsw': idsw_value, 
             }
-        display(pd.DataFrame(metric_dict).T.astype({'IDsw': int}))
-        print('='*50)
+        df_result = pd.DataFrame(metric_dict).T.astype({'IDsw': int})
+        if not group_by_sequence: display(df_result)
+        df_results.append((tracker, df_result))
+        if not group_by_sequence: print('='*50)
 
+    if group_by_sequence:
+        all_sequences = {k: [] for k in list(df_results[0][1].index)}
+        for result in df_results:
+            name ,df = result
+            for i,r in df.iterrows():
+                d = pd.DataFrame({name: r.to_dict()}).T.astype({'IDsw': int})
+                all_sequences[i].append(d[list(r.keys())])
+        for k,v in all_sequences.items():
+            print(k)
+            v = pd.concat(v)
+            display(v)
 
+    return df_results
 
 def reindex_frame_id(file, frame_id_col=0):
     result_file = file.sort_values(by=frame_id_col).reset_index(drop=True)
