@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import torch
 from fastprogress import progress_bar
+from IPython.display import display
 from TrackEval import trackeval
 from . import ifnone, get_name_from_path, assert_in_list
 
@@ -291,8 +292,10 @@ def summarize(results):
             metric_dict[sequence] = {
                 'HOTA': hota_value, 'MOTA': mota_value, 'IDF1': idf1_value, 'IDsw': idsw_value, 
             }
-        display(pd.DataFrame(metric_dict).T.astype({'IDsw': int}))
+        df_result = pd.DataFrame(metric_dict).T.astype({'IDsw': int})
+        display(df_result)
         print('='*50)
+    return df_result
 
 
 
