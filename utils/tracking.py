@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import torch
 from fastprogress import progress_bar
+from IPython.display import display
 from TrackEval import trackeval
 from . import ifnone, get_name_from_path, assert_in_list
 
@@ -175,13 +176,13 @@ def create_benchmark(benchmark_name, sequences, destination, seqmap_path=None, v
     """
 
     benchmark_path = os.path.join(destination, benchmark_name)
-    os.makedirs(benchmark_path)
+    os.makedirs(benchmark_path, exist_ok=True)
 
     sequence_name_list = []
     for i, sequence in enumerate(sequences):
         sequence_name = sequence['seqinfo'].get('name', f'sequence_{i}')
         sequence_path = os.path.join(benchmark_path, sequence_name)
-        os.makedirs(sequence_path)
+        os.makedirs(sequence_path, exist_ok=True)
         sequence['gt'].to_csv(os.path.join(sequence_path, 'gt.txt'), header=None, index=None)
         with open(os.path.join(sequence_path, 'seqinfo.ini'), 'w') as f:
             f.write('[Sequence]')
@@ -291,8 +292,10 @@ def summarize(results):
             metric_dict[sequence] = {
                 'HOTA': hota_value, 'MOTA': mota_value, 'IDF1': idf1_value, 'IDsw': idsw_value, 
             }
-        display(pd.DataFrame(metric_dict).T.astype({'IDsw': int}))
+        df_result = pd.DataFrame(metric_dict).T.astype({'IDsw': int})
+        display(df_result)
         print('='*50)
+    return df_result
 
 
 
