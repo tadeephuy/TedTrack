@@ -4,25 +4,25 @@ Created on 28/12/2021  18:23
 
 @author: Soan Duong, ORCID: https://orcid.org/0000-0002-2092-0088
 """
-
 import os
+import sys
+parentdir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
+sys.path.append(parentdir)
+
 import glob
 import numpy as np
 import pandas as pd
+from utils import get_name_from_path
 from utils.tracking import track_evaluate, create_sequence, create_benchmark,\
                     create_tracker_results, summarize, read_txt_to_mot, pair_gt_result
 
 # Set the tracking results for evaluation
-# RESULT_PATHs = ['../byte_tracking/data/outputs/frcnn_r18_hdet640-cam3_1hour_1_byte.txt']
 
-RESULT_PATHs = ['../byte_tracking/data/outputs/atss_r18_hdet640-cam3_1hour_1_byte_25_0.2_0.8_1_skipframes.txt',
-                '../byte_tracking/data/outputs/atss_r18_hdet640-cam3_1hour_1_byte.txt',
-                 '../byte_tracking/data/outputs/frcnn_r50_hdet640-cam3_1hour_1_byte.txt',
-                 '../byte_tracking/data/outputs/atss_r18_hdet640-cam3_1hour_1_byte_25_0.2_0.8.txt',
-                 '../byte_tracking/data/outputs/frcnn_r18_hdet640-cam3_1hour_1_byte.txt',
-                 '../byte_tracking/data/outputs/frcnn_r50_half_mot_ft1x-cam3_1hour_byte_1_skipframes.txt',
-                 '../byte_tracking/data/outputs/atss_r18_hdet640-cam3_1hour_1_byte_1_skipframes.txt',
-                 '../byte_tracking/data/outputs/frcnn_r18_hdet640_ft2-cam3_1hour_1_byte.txt']
+RESULT_PATHs = ['./sample/deepsort_frcnn_r18/deepsort_resnext50_32x4d_swsl.txt',
+                './sample/deepsort_frcnn_r18/deepsort_mobilenet_v3_large.txt',
+                './sample/bytetrack/bytetrack_2_skipframes.txt',
+                 './sample/deepsort_frcnn_r18/deepsort_densenet121.txt']
+VERBOSE = False
 out_file = 'results_rounded.csv'
 df_all = []
 for RESULT_PATH in RESULT_PATHs:
@@ -62,7 +62,7 @@ for RESULT_PATH in RESULT_PATHs:
             gt_frame_skip=SKIP,
             destination=PAIRED_DESTINATION,
             posfix='',
-            verbose=True
+            verbose=VERBOSE
         ) # -> paired: {'gt': gt, 'result': result, 'length': new_sequence_length}
 
         new_sequence_length = paired['length']
@@ -72,30 +72,30 @@ for RESULT_PATH in RESULT_PATHs:
         RESULT_PATH = os.path.join(PAIRED_DESTINATION, os.path.basename(RESULT_PATH))
 
     # Create the benchmark and results directories
-    print('\n===== Create sequence folder', '='*5)
+    if VERBOSE: print('\n===== Create sequence folder', '='*5)
     cam3_10mins = create_sequence(
         gt_path=GT_PATH,
         name=SEQUENCE_NAME,
         fps=FPS, shape=SHAPE, length=LENGTH,
-        verbose=True
+        verbose=VERBOSE
     )
 
-    print('\n===== Create Benchmark folder', '='*5)
+    if VERBOSE: print('\n===== Create Benchmark folder', '='*5)
     create_benchmark(
         benchmark_name=BENCHMARK,
         sequences=[cam3_10mins],
         destination=os.path.join(SAMPLE_FOLDER, 'benchmarks'),
         seqmap_path=os.path.join(SAMPLE_FOLDER, 'seqmaps'),
-        verbose=True
+        verbose=VERBOSE
     )
 
-    print('\n===== Create result folders', '='*5)
+    if VERBOSE: print('\n===== Create result folders', '='*5)
     byte_track_result_path = RESULT_PATH
     create_tracker_results(
         result_path=byte_track_result_path,
-        benchmark_name=BENCHMARK, sequence_name=SEQUENCE_NAME, tracker_name='ByteTrack',
+        benchmark_name=BENCHMARK, sequence_name=SEQUENCE_NAME, tracker_name=get_name_from_path(RESULT_PATH),
         destination=os.path.join(SAMPLE_FOLDER, 'trackers'),
-        verbose=True
+        verbose=VERBOSE
     )
 
     # Evaluate
@@ -107,17 +107,19 @@ for RESULT_PATH in RESULT_PATHs:
                              gt_folder=gt_topview,
                              trackers_folder=tracker_topview,
                              seqmap_file=seqmap_file)
-    df = summarize(results)
-    print('Tracking result path:', os.path.basename(RESULT_PATH))
+    tracker_name, df = summarize(results, verbose=VERBOSE)[-1] # get last 
 
     df = df.drop(labels=SEQUENCE_NAME, axis=0)
-    df.insert(0, 'detection_results', [os.path.basename(RESULT_PATH)], allow_duplicates=False)
-    # df_all = df_all.append(df, ignore_index=True)
-    if len(df_all) == 0:
-        df_all = df
-    else:
-        # df_all = pd.concat([df_all, df])
-        df_all = df_all.append(df)
+    df.insert(0, 'detection_results', [tracker_name], allow_duplicates=False)
+    df_all.append(df)
+    
+    import shutil
+    shutil.rmtree(SAMPLE_FOLDER, ignore_errors=True)
+    if PAIRED_DESTINATION: shutil.rmtree(PAIRED_DESTINATION, ignore_errors=True)
+
+df_all = pd.concat(df_all)
+
 for c in df_all.columns[1:4]:
     df_all[c] = df_all[c].apply(lambda x: round(x, 4))
 df_all.to_csv(out_file, index=False)
+print(f'Results: {os.path.abspath(out_file)}')
